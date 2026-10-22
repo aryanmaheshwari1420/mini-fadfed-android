@@ -18,7 +18,7 @@ import okhttp3.WebSocketListener
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
-class FadfedWebSocketClient(
+open class FadfedWebSocketClient(
     private val identityManager: IdentityManager,
     private val wsBaseUrl: String = FadfedConfig.DEFAULT_WS_BASE_URL,
     customClient: OkHttpClient? = null
@@ -30,10 +30,10 @@ class FadfedWebSocketClient(
         .build()
 
     private val _connectionState = MutableStateFlow<WsConnectionState>(WsConnectionState.Disconnected)
-    val connectionState: StateFlow<WsConnectionState> = _connectionState.asStateFlow()
+    open val connectionState: StateFlow<WsConnectionState> = _connectionState.asStateFlow()
 
-    private val _incomingEvents = MutableSharedFlow<FadfedWsEvent>(extraBufferCapacity = 64)
-    val incomingEvents: SharedFlow<FadfedWsEvent> = _incomingEvents.asSharedFlow()
+    private val _incomingEvents = MutableSharedFlow<FadfedWsEvent>(replay = 5, extraBufferCapacity = 64)
+    open val incomingEvents: SharedFlow<FadfedWsEvent> = _incomingEvents.asSharedFlow()
 
     private val activeWebSocket = AtomicReference<WebSocket?>(null)
 
@@ -44,7 +44,7 @@ class FadfedWebSocketClient(
      * - Query parameters: udid, devid, token, session-id
      */
     @Synchronized
-    fun connect() {
+    open fun connect() {
         val currentState = _connectionState.value
         if (currentState is WsConnectionState.Connecting ||
             currentState is WsConnectionState.Connected ||
@@ -75,7 +75,7 @@ class FadfedWebSocketClient(
      * Cleanly closes the active WebSocket connection.
      */
     @Synchronized
-    fun disconnect() {
+    open fun disconnect() {
         disconnectInternal(code = 1000, reason = "Client disconnect")
         _connectionState.value = WsConnectionState.Disconnected
     }
@@ -85,7 +85,7 @@ class FadfedWebSocketClient(
      * Enforces the READY gate:
      * If the session is not in the Ready state, the frame is REJECTED and NOT queued.
      */
-    fun send(event: String, payload: JsonObject): Boolean {
+    open fun send(event: String, payload: JsonObject): Boolean {
         if (_connectionState.value !is WsConnectionState.Ready) {
             // Application frames must never be sent or queued before READY (§8.3)
             return false
