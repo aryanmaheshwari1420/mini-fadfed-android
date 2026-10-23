@@ -16,7 +16,8 @@ import java.util.UUID
 
 class MatchSessionManager(
     private val wsClient: FadfedWebSocketClient,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
+    private val conversationManager: ConversationManager? = null
 ) {
     private val _matchState = MutableStateFlow<MatchUiState>(MatchUiState.Idle)
     val matchState: StateFlow<MatchUiState> = _matchState.asStateFlow()
@@ -119,6 +120,7 @@ class MatchSessionManager(
                 peerUdid = current.peerUdid,
                 peerName = current.peerName
             )
+            conversationManager?.startConversation(current.chatId, current.peerUdid, current.peerName)
         } else {
             _matchState.value = current.copy(youAccepted = true)
         }
@@ -154,6 +156,7 @@ class MatchSessionManager(
                 addProperty("chatId", current.chatId)
             }
             wsClient.send("leave", leavePayload)
+            conversationManager?.endConversation()
             _matchState.value = MatchUiState.Idle
         }
     }
@@ -180,6 +183,7 @@ class MatchSessionManager(
                             peerUdid = current.peerUdid,
                             peerName = current.peerName
                         )
+                        conversationManager?.startConversation(chatId, current.peerUdid, current.peerName)
                     } else {
                         _matchState.value = current.copy(peerAccepted = peerNowAccepted)
                     }
@@ -226,6 +230,7 @@ class MatchSessionManager(
                     _matchState.value = MatchUiState.Idle
                     startSearch(lastFilter)
                 } else if (current is MatchUiState.Connected && (event.chatId == null || event.chatId == current.chatId)) {
+                    conversationManager?.endConversation()
                     _matchState.value = MatchUiState.Idle
                     _errorMessage.value = "Peer left the conversation."
                 }

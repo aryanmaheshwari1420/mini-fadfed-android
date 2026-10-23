@@ -16,6 +16,7 @@ fun MatchRootScreen(
     val matchState by viewModel.matchState.collectAsState()
     val wallet by viewModel.wallet.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val messages by viewModel.messages.collectAsState()
 
     // Handle back button behavior cleanly without creating orphan sessions
     BackHandler(enabled = matchState !is MatchUiState.Idle) {
@@ -58,9 +59,14 @@ fun MatchRootScreen(
             )
         }
         is MatchUiState.Connected -> {
-            ConversationPlaceholderScreen(
+            ConversationScreen(
                 peerName = state.peerName,
                 chatId = state.chatId,
+                messages = messages,
+                onSendMessage = viewModel::sendMessage,
+                onRetryMessage = viewModel::retryMessage,
+                onMarkMessageVisible = viewModel::markMessageVisible,
+                onSetVisible = viewModel::setConversationVisible,
                 onEndChat = viewModel::leaveConversation,
                 modifier = modifier
             )

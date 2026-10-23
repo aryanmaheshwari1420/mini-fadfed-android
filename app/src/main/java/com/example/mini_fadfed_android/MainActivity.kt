@@ -17,6 +17,7 @@ import com.example.mini_fadfed_android.core.identity.SharedPrefsIdentityStorage
 import com.example.mini_fadfed_android.data.remote.FadfedRestClient
 import com.example.mini_fadfed_android.data.remote.ws.FadfedWebSocketClient
 import com.example.mini_fadfed_android.data.repository.AuthRepository
+import com.example.mini_fadfed_android.data.repository.ConversationManager
 import com.example.mini_fadfed_android.data.repository.MatchSessionManager
 import com.example.mini_fadfed_android.ui.match.MatchViewModel
 import com.example.mini_fadfed_android.ui.match.screens.MatchRootScreen
@@ -31,7 +32,8 @@ class MainActivity : ComponentActivity() {
     private val restClient by lazy { FadfedRestClient(identityManager) }
     private val authRepository by lazy { AuthRepository(identityManager, restClient) }
     private val wsClient by lazy { FadfedWebSocketClient(identityManager) }
-    private val matchSessionManager by lazy { MatchSessionManager(wsClient, lifecycleScope) }
+    private val conversationManager by lazy { ConversationManager(wsClient, identityManager, lifecycleScope) }
+    private val matchSessionManager by lazy { MatchSessionManager(wsClient, lifecycleScope, conversationManager) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,7 +62,7 @@ class MainActivity : ComponentActivity() {
                         factory = object : ViewModelProvider.Factory {
                             @Suppress("UNCHECKED_CAST")
                             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                                return MatchViewModel(matchSessionManager, identityManager) as T
+                                return MatchViewModel(matchSessionManager, conversationManager, identityManager) as T
                             }
                         }
                     )
@@ -72,6 +74,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        conversationManager.cleanup()
         wsClient.disconnect()
     }
 }
