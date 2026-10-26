@@ -1,5 +1,6 @@
 package com.example.mini_fadfed_android.data.repository
 
+import android.util.Log
 import com.example.mini_fadfed_android.data.remote.ws.FadfedWebSocketClient
 import com.example.mini_fadfed_android.data.remote.ws.WsConnectionState
 import com.example.mini_fadfed_android.data.remote.ws.models.FadfedWsEvent
@@ -19,6 +20,10 @@ class MatchSessionManager(
     private val scope: CoroutineScope,
     private val conversationManager: ConversationManager? = null
 ) {
+    companion object {
+        private const val TAG = "FadfedMatch"
+    }
+
     private val _matchState = MutableStateFlow<MatchUiState>(MatchUiState.Idle)
     val matchState: StateFlow<MatchUiState> = _matchState.asStateFlow()
 
@@ -30,6 +35,7 @@ class MatchSessionManager(
 
     private var lastFilter: MatchFilter = MatchFilter.BOTH
     private var currentRequestId: String? = null
+    private var pendingMatchPayload: JsonObject? = null
 
     private val eventCollectionJob = scope.launch {
         wsClient.incomingEvents.collect { event ->
@@ -37,12 +43,43 @@ class MatchSessionManager(
         }
     }
 
+    private val connectionStateJob = scope.launch {
+        wsClient.connectionState.collect { state ->
+            Log.d(TAG, "WebSocket connectionState changed: $state")
+            if (state is WsConnectionState.Ready) {
+                val pending = pendingMatchPayload
+                if (pending != null && _matchState.value is MatchUiState.Searching) {
+                    Log.d(TAG, "WebSocket reached READY. Dispatching pending match frame: $pending")
+                    val sent = wsClient.send("match", pending)
+                    Log.d(TAG, "Dispatched pending match success: $sent")
+                    pendingMatchPayload = null
+                }
+            } else if (state is WsConnectionState.Error) {
+                if (_matchState.value is MatchUiState.Searching) {
+                    Log.w(TAG, "WebSocket connection error while searching: ${state.message}")
+                    _errorMessage.value = state.message
+                    _matchState.value = MatchUiState.Idle
+                    pendingMatchPayload = null
+                }
+            }
+        }
+    }
+
     fun cleanup() {
         eventCollectionJob.cancel()
+        connectionStateJob.cancel()
     }
 
     fun clearError() {
         _errorMessage.value = null
+    }
+
+    fun ensureConnected() {
+        val state = wsClient.connectionState.value
+        if (state is WsConnectionState.Disconnected || state is WsConnectionState.Error) {
+            Log.d(TAG, "ensureConnected: connecting WebSocket...")
+            wsClient.connect()
+        }
     }
 
     /**
@@ -55,6 +92,7 @@ class MatchSessionManager(
         val current = _matchState.value
         if (current is MatchUiState.Searching || current is MatchUiState.Matched || current is MatchUiState.Connected) {
             // Prevent duplicate search requests caused by repeated taps
+            Log.d(TAG, "startSearch ignored: already in state $current")
             return
         }
 
@@ -72,16 +110,18 @@ class MatchSessionManager(
             }
         }
 
+        Log.d(TAG, "startSearch initiated: filter=$filter, requestId=$requestId, payload=$payload")
         _matchState.value = MatchUiState.Searching(filter = filter, requestId = requestId)
 
-        // Ensure WebSocket is connected
-        if (wsClient.connectionState.value is WsConnectionState.Disconnected ||
-            wsClient.connectionState.value is WsConnectionState.Error
-        ) {
-            wsClient.connect()
+        if (wsClient.connectionState.value is WsConnectionState.Ready) {
+            Log.d(TAG, "WebSocket is already READY. Sending match frame immediately.")
+            val sent = wsClient.send("match", payload)
+            Log.d(TAG, "Immediate match frame sent: success=$sent")
+        } else {
+            Log.d(TAG, "WebSocket is not READY yet (state=${wsClient.connectionState.value}). Storing pending match request and ensuring connection...")
+            pendingMatchPayload = payload
+            ensureConnected()
         }
-
-        wsClient.send("match", payload)
     }
 
     /**
@@ -91,6 +131,8 @@ class MatchSessionManager(
     fun cancelSearch() {
         val current = _matchState.value
         if (current is MatchUiState.Searching) {
+            Log.d(TAG, "cancelSearch: clearing pending request and sending leave frame")
+            pendingMatchPayload = null
             wsClient.send("leave", JsonObject())
             _matchState.value = MatchUiState.Idle
             currentRequestId = null
@@ -108,6 +150,7 @@ class MatchSessionManager(
             return
         }
 
+        Log.d(TAG, "acceptMatch called for chatId=${current.chatId}")
         val acceptPayload = JsonObject().apply {
             addProperty("chatId", current.chatId)
         }
@@ -115,6 +158,7 @@ class MatchSessionManager(
 
         if (current.peerAccepted) {
             // Both sides have accepted! Transition to conversation
+            Log.d(TAG, "Both sides have accepted! Transitioning to Connected.")
             _matchState.value = MatchUiState.Connected(
                 chatId = current.chatId,
                 peerUdid = current.peerUdid,
@@ -122,6 +166,7 @@ class MatchSessionManager(
             )
             conversationManager?.startConversation(current.chatId, current.peerUdid, current.peerName)
         } else {
+            Log.d(TAG, "Local accept sent. Waiting for peer acceptance...")
             _matchState.value = current.copy(youAccepted = true)
         }
     }
@@ -136,6 +181,7 @@ class MatchSessionManager(
             return
         }
 
+        Log.d(TAG, "skipMatch: sending leave for chatId=${current.chatId}")
         val leavePayload = JsonObject().apply {
             addProperty("chatId", current.chatId)
         }
@@ -152,6 +198,7 @@ class MatchSessionManager(
     fun leaveConversation() {
         val current = _matchState.value
         if (current is MatchUiState.Connected) {
+            Log.d(TAG, "leaveConversation: sending leave for chatId=${current.chatId}")
             val leavePayload = JsonObject().apply {
                 addProperty("chatId", current.chatId)
             }
@@ -162,8 +209,10 @@ class MatchSessionManager(
     }
 
     private fun handleInboundEvent(event: FadfedWsEvent) {
+        Log.d(TAG, "Handling inbound event: ${event.javaClass.simpleName}")
         when (event) {
             is FadfedWsEvent.Status -> {
+                Log.d(TAG, "Status updated: coins=${event.coins}, genderCost=${event.genderCost}")
                 _wallet.value = UserWallet(
                     coins = event.coins,
                     genderCost = event.genderCost,
@@ -173,11 +222,13 @@ class MatchSessionManager(
             is FadfedWsEvent.Matched -> {
                 val chatId = event.chatId ?: return
                 val current = _matchState.value
+                Log.d(TAG, "Matched event: chatId=$chatId, peerAccepted=${event.accepted}, currentState=$current")
 
                 if (current is MatchUiState.Matched && current.chatId == chatId) {
                     // Second matched event for same chat carrying peer's acceptance status
                     val peerNowAccepted = event.accepted
                     if (peerNowAccepted && current.youAccepted) {
+                        Log.d(TAG, "Both sides accepted! Opening conversation.")
                         _matchState.value = MatchUiState.Connected(
                             chatId = chatId,
                             peerUdid = current.peerUdid,
@@ -185,11 +236,13 @@ class MatchSessionManager(
                         )
                         conversationManager?.startConversation(chatId, current.peerUdid, current.peerName)
                     } else {
+                        Log.d(TAG, "Updating peer acceptance status to $peerNowAccepted")
                         _matchState.value = current.copy(peerAccepted = peerNowAccepted)
                     }
                 } else if (current is MatchUiState.Searching) {
                     // First matched event arrives!
                     val peerAlreadyAccepted = event.accepted
+                    Log.d(TAG, "First matched event received! chatId=$chatId, peerUdid=${event.udid}, peerAccepted=$peerAlreadyAccepted")
                     _matchState.value = MatchUiState.Matched(
                         chatId = chatId,
                         peerUdid = event.udid.orEmpty(),
@@ -204,6 +257,7 @@ class MatchSessionManager(
                     val peerUdid = event.item
                     val name = event.data?.get("name")?.takeIf { !it.isJsonNull }?.asString
                     val gender = event.data?.get("gender")?.takeIf { !it.isJsonNull }?.asString
+                    Log.d(TAG, "Sync profile: peerUdid=$peerUdid, name=$name, gender=$gender")
 
                     val current = _matchState.value
                     if (current is MatchUiState.Matched && current.peerUdid == peerUdid) {
@@ -221,21 +275,26 @@ class MatchSessionManager(
             is FadfedWsEvent.Leave -> {
                 if (event.friends == true) {
                     // "A leave carrying 'friends': true means chat transitioned to friend mode. Ignore those." (§8.5)
+                    Log.d(TAG, "Leave carrying friends=true ignored")
                     return
                 }
 
                 val current = _matchState.value
+                Log.d(TAG, "Leave event received: chatId=${event.chatId}, current state=$current")
                 if (current is MatchUiState.Matched && (event.chatId == null || event.chatId == current.chatId)) {
                     // "If the peer skips first you receive leave — go back to searching automatically." (§2.4)
+                    Log.d(TAG, "Peer skipped during match. Restarting search automatically.")
                     _matchState.value = MatchUiState.Idle
                     startSearch(lastFilter)
                 } else if (current is MatchUiState.Connected && (event.chatId == null || event.chatId == current.chatId)) {
+                    Log.d(TAG, "Peer left conversation. Returning to Idle.")
                     conversationManager?.endConversation()
                     _matchState.value = MatchUiState.Idle
                     _errorMessage.value = "Peer left the conversation."
                 }
             }
             is FadfedWsEvent.Error -> {
+                Log.e(TAG, "Error event received: code=${event.code}, ref=${event.ref}")
                 handleMatchError(event.code)
             }
             else -> {}
@@ -247,6 +306,7 @@ class MatchSessionManager(
         if (current is MatchUiState.Searching) {
             _matchState.value = MatchUiState.Idle
             currentRequestId = null
+            pendingMatchPayload = null
         }
 
         _errorMessage.value = when (code) {

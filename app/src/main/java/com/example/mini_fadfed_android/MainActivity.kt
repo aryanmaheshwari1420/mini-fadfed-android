@@ -55,6 +55,7 @@ class MainActivity : ComponentActivity() {
                         viewModel = signupViewModel,
                         onSignupSuccess = {
                             isRegistered = true
+                            matchSessionManager.ensureConnected()
                         }
                     )
                 } else {
@@ -75,6 +76,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         conversationManager.cleanup()
+        matchSessionManager.cleanup()
         wsClient.disconnect()
     }
 }

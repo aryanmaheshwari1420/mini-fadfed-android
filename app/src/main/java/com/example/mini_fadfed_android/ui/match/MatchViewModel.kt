@@ -25,6 +25,10 @@ class MatchViewModel(
     val userGender: String = identityManager.getUserGender() ?: "m"
     val devId: String = identityManager.devId
 
+    init {
+        matchSessionManager.ensureConnected()
+    }
+
     fun startSearch(filter: MatchFilter) {
         matchSessionManager.startSearch(filter)
     }

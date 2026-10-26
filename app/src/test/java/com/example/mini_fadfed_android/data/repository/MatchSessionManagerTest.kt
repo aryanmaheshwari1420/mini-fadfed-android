@@ -292,6 +292,42 @@ class MatchSessionManagerTest {
         assertEquals("Second tap while searching must be ignored", countAfterFirst, fakeWsClient.sentCount)
     }
 
+    @Test
+    fun searchInitiatedBeforeReady_buffersAndSendsWhenReadyArrives() = runTest {
+        fakeWsClient.setDisconnected()
+        val sessionManager = MatchSessionManager(fakeWsClient, sessionScope)
+
+        sessionManager.startSearch(MatchFilter.BOTH)
+        assertTrue(sessionManager.matchState.value is MatchUiState.Searching)
+        assertEquals("Match frame must not be sent before WebSocket is Ready", 0, fakeWsClient.sentCount)
+        assertTrue("Connect must be initiated if disconnected", fakeWsClient.connectCalled)
+
+        // Now socket connects and signals Ready
+        fakeWsClient.setReady()
+
+        assertEquals("Match frame must be sent immediately once socket becomes Ready", 1, fakeWsClient.sentCount)
+        val lastSent = fakeWsClient.lastSentFrame
+        assertNotNull(lastSent)
+        assertEquals("match", lastSent!!.first)
+        assertFalse("Both filter payload must omit gender key", lastSent.second.has("gender"))
+    }
+
+    @Test
+    fun searchCancelledBeforeReady_clearsPendingMatchRequest() = runTest {
+        fakeWsClient.setDisconnected()
+        val sessionManager = MatchSessionManager(fakeWsClient, sessionScope)
+
+        sessionManager.startSearch(MatchFilter.BOTH)
+        sessionManager.cancelSearch()
+        assertTrue(sessionManager.matchState.value is MatchUiState.Idle)
+
+        // Socket becomes Ready after search was cancelled
+        fakeWsClient.setReady()
+
+        // Only the leave frame should have been sent (if any), but definitely not match
+        assertNotEquals("match", fakeWsClient.lastSentFrame?.first)
+    }
+
     private class FakeWebSocketClient(identityManager: IdentityManager) : FadfedWebSocketClient(identityManager) {
         private val _mockConnectionState = MutableStateFlow<WsConnectionState>(WsConnectionState.Disconnected)
         override val connectionState: StateFlow<WsConnectionState> = _mockConnectionState.asStateFlow()
@@ -301,9 +337,14 @@ class MatchSessionManagerTest {
 
         var lastSentFrame: Pair<String, JsonObject>? = null
         var sentCount: Int = 0
+        var connectCalled: Boolean = false
 
         fun setReady() {
             _mockConnectionState.value = WsConnectionState.Ready
+        }
+
+        fun setDisconnected() {
+            _mockConnectionState.value = WsConnectionState.Disconnected
         }
 
         fun emitEvent(event: FadfedWsEvent) {
@@ -316,7 +357,10 @@ class MatchSessionManagerTest {
             return true
         }
 
-        override fun connect() {}
+        override fun connect() {
+            connectCalled = true
+        }
+
         override fun disconnect() {}
     }
 }

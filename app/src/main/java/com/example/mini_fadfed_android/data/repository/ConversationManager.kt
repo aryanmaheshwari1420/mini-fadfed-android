@@ -1,5 +1,6 @@
 package com.example.mini_fadfed_android.data.repository
 
+import android.util.Log
 import com.example.mini_fadfed_android.core.identity.IdentityManager
 import com.example.mini_fadfed_android.data.remote.ws.FadfedWebSocketClient
 import com.example.mini_fadfed_android.data.remote.ws.WsConnectionState
@@ -24,6 +25,7 @@ class ConversationManager(
     private val eventScope: CoroutineScope = scope
 ) {
     companion object {
+        private const val TAG = "FadfedChat"
         const val ACK_TIMEOUT_MS = 5000L
         const val MAX_RETRIES = 3
     }
