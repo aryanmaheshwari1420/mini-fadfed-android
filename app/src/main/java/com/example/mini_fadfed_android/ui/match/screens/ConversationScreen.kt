@@ -2,6 +2,7 @@ package com.example.mini_fadfed_android.ui.match.screens
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,6 +24,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -60,6 +62,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.mini_fadfed_android.domain.model.ChatMessage
 import com.example.mini_fadfed_android.domain.model.MessageStatus
+import com.example.mini_fadfed_android.ui.theme.FadfedBorder
+import com.example.mini_fadfed_android.ui.theme.FadfedErrorRed
+import com.example.mini_fadfed_android.ui.theme.FadfedMutedBlueGrey
+import com.example.mini_fadfed_android.ui.theme.FadfedPrimaryBackground
+import com.example.mini_fadfed_android.ui.theme.FadfedPrimaryBlue
+import com.example.mini_fadfed_android.ui.theme.FadfedSecondaryIndigo
+import com.example.mini_fadfed_android.ui.theme.FadfedTextPrimary
+import com.example.mini_fadfed_android.ui.theme.FadfedYellowAccent
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -96,6 +106,7 @@ fun ConversationScreen(
     }
 
     Scaffold(
+        containerColor = FadfedPrimaryBackground,
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
@@ -103,15 +114,15 @@ fun ConversationScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
-                                .size(40.dp)
+                                .size(42.dp)
                                 .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer),
+                                .background(FadfedSecondaryIndigo),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = peerName.take(1).uppercase(),
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                color = Color.White
                             )
                         }
                         Spacer(modifier = Modifier.width(12.dp))
@@ -119,7 +130,8 @@ fun ConversationScreen(
                             Text(
                                 text = peerName,
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
+                                fontWeight = FontWeight.Bold,
+                                color = FadfedTextPrimary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -128,13 +140,13 @@ fun ConversationScreen(
                                     modifier = Modifier
                                         .size(8.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFF4CAF50))
+                                        .background(FadfedPrimaryBlue)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Connected",
+                                    text = "Connected • Active",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = FadfedMutedBlueGrey
                                 )
                             }
                         }
@@ -145,26 +157,28 @@ fun ConversationScreen(
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Leave Conversation",
-                            tint = MaterialTheme.colorScheme.error
+                            tint = FadfedMutedBlueGrey
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = Color.White
                 )
             )
         },
         bottomBar = {
             Surface(
-                tonalElevation = 3.dp,
+                color = Color.White,
+                tonalElevation = 2.dp,
                 modifier = Modifier
                     .fillMaxWidth()
                     .imePadding()
+                    .border(1.dp, FadfedBorder, RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     OutlinedTextField(
@@ -172,15 +186,27 @@ fun ConversationScreen(
                         onValueChange = { inputText = it },
                         modifier = Modifier
                             .weight(1f)
-                            .padding(end = 8.dp),
-                        placeholder = { Text("Type a message...") },
+                            .padding(end = 10.dp),
+                        placeholder = {
+                            Text(
+                                text = "Type a message...",
+                                color = FadfedMutedBlueGrey
+                            )
+                        },
                         maxLines = 4,
                         shape = RoundedCornerShape(24.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                            focusedContainerColor = FadfedPrimaryBackground,
+                            unfocusedContainerColor = FadfedPrimaryBackground,
+                            focusedBorderColor = FadfedPrimaryBlue,
+                            unfocusedBorderColor = FadfedBorder,
+                            focusedTextColor = FadfedTextPrimary,
+                            unfocusedTextColor = FadfedTextPrimary,
+                            cursorColor = FadfedSecondaryIndigo
                         )
                     )
+
+                    val canSend = inputText.trim().isNotEmpty()
 
                     Button(
                         onClick = {
@@ -194,13 +220,22 @@ fun ConversationScreen(
                                 }
                             }
                         },
-                        enabled = inputText.trim().isNotEmpty(),
-                        shape = RoundedCornerShape(24.dp),
+                        enabled = canSend,
+                        shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
+                            containerColor = FadfedSecondaryIndigo,
+                            contentColor = Color.White,
+                            disabledContainerColor = FadfedMutedBlueGrey.copy(alpha = 0.5f),
+                            disabledContentColor = Color.White.copy(alpha = 0.7f)
+                        ),
+                        contentPadding = PaddingValues(0.dp),
+                        modifier = Modifier.size(48.dp)
                     ) {
-                        Text("Send", fontWeight = FontWeight.Bold)
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = "Send",
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
             }
@@ -218,13 +253,33 @@ fun ConversationScreen(
                         .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "You are now connected with $peerName!\nSay hello to start chatting.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.padding(32.dp)
-                    )
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(CircleShape)
+                                .background(FadfedPrimaryBlue.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("👋", fontSize = 28.sp)
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "You're connected with $peerName!",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = FadfedTextPrimary
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Say hello to start the conversation.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = FadfedMutedBlueGrey
+                        )
+                    }
                 }
             } else {
                 LazyColumn(
@@ -254,24 +309,42 @@ fun ConversationScreen(
         if (showEndChatDialog) {
             AlertDialog(
                 onDismissRequest = { showEndChatDialog = false },
-                title = { Text("Leave Conversation") },
-                text = { Text("Are you sure you want to end this conversation with $peerName?") },
+                title = {
+                    Text(
+                        text = "Leave Conversation",
+                        fontWeight = FontWeight.Bold,
+                        color = FadfedTextPrimary
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Are you sure you want to end this conversation with $peerName?",
+                        color = FadfedMutedBlueGrey
+                    )
+                },
                 confirmButton = {
                     Button(
                         onClick = {
                             showEndChatDialog = false
                             onEndChat()
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                        colors = ButtonDefaults.buttonColors(containerColor = FadfedErrorRed),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Leave Chat")
+                        Text("Leave Chat", fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showEndChatDialog = false }) {
-                        Text("Cancel")
+                        Text(
+                            text = "Cancel",
+                            fontWeight = FontWeight.SemiBold,
+                            color = FadfedMutedBlueGrey
+                        )
                     }
-                }
+                },
+                containerColor = Color.White,
+                shape = RoundedCornerShape(20.dp)
             )
         }
     }
@@ -285,21 +358,21 @@ fun MessageBubble(
 ) {
     val isMe = message.isFromMe
     val bubbleShape = if (isMe) {
-        RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 4.dp)
+        RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomStart = 18.dp, bottomEnd = 4.dp)
     } else {
-        RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 4.dp, bottomEnd = 16.dp)
+        RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomStart = 4.dp, bottomEnd = 18.dp)
     }
 
     val backgroundColor = if (isMe) {
-        MaterialTheme.colorScheme.primaryContainer
+        FadfedSecondaryIndigo
     } else {
-        MaterialTheme.colorScheme.surfaceVariant
+        Color.White
     }
 
     val textColor = if (isMe) {
-        MaterialTheme.colorScheme.onPrimaryContainer
+        Color.White
     } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
+        FadfedTextPrimary
     }
 
     Row(
@@ -309,13 +382,16 @@ fun MessageBubble(
         Surface(
             shape = bubbleShape,
             color = backgroundColor,
-            tonalElevation = 1.dp,
+            shadowElevation = if (isMe) 0.dp else 1.dp,
             modifier = Modifier
                 .widthIn(max = 280.dp)
+                .then(
+                    if (!isMe) Modifier.border(1.dp, FadfedBorder, bubbleShape) else Modifier
+                )
                 .clickable(enabled = message.status == MessageStatus.FAILED, onClick = onRetry)
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp)
             ) {
                 Text(
                     text = message.content,
@@ -337,7 +413,7 @@ fun MessageBubble(
                     Text(
                         text = timeStr,
                         fontSize = 11.sp,
-                        color = textColor.copy(alpha = 0.7f)
+                        color = if (isMe) Color.White.copy(alpha = 0.75f) else FadfedMutedBlueGrey
                     )
 
                     if (isMe) {
@@ -351,7 +427,8 @@ fun MessageBubble(
                     Text(
                         text = "Failed to send. Tap to retry.",
                         fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.SemiBold,
+                        color = FadfedYellowAccent,
                         modifier = Modifier.align(Alignment.End)
                     )
                 }
@@ -362,23 +439,22 @@ fun MessageBubble(
 
 /**
  * Renders the exact message status:
- * - SENDING: Clock icon (not yet written to socket)
- * - SENT: Single tick (written to open socket)
- * - READ: Double ticks (peer sent ack with status: "read")
- * - FAILED: Warning indicator (unacknowledged after 5s timeout and 3 retries)
+ * - SENDING: Clock icon
+ * - SENT: Single tick
+ * - READ: Double ticks in yellow accent
+ * - FAILED: Warning indicator in error red
  */
 @Composable
 fun MessageStatusIcon(
     status: MessageStatus,
     modifier: Modifier = Modifier
 ) {
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val neutralColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-    val errorColor = MaterialTheme.colorScheme.error
+    val neutralColor = Color.White.copy(alpha = 0.8f)
+    val readColor = FadfedYellowAccent
+    val errorColor = FadfedErrorRed
 
     when (status) {
         MessageStatus.SENDING -> {
-            // Clock icon
             Canvas(modifier = modifier.size(13.dp)) {
                 val center = Offset(size.width / 2, size.height / 2)
                 val radius = (size.minDimension / 2) - 1f
@@ -387,7 +463,6 @@ fun MessageStatusIcon(
                     radius = radius,
                     style = Stroke(width = 1.5f)
                 )
-                // Hour hand
                 drawLine(
                     color = neutralColor,
                     start = center,
@@ -395,7 +470,6 @@ fun MessageStatusIcon(
                     strokeWidth = 1.5f,
                     cap = StrokeCap.Round
                 )
-                // Minute hand
                 drawLine(
                     color = neutralColor,
                     start = center,
@@ -406,7 +480,6 @@ fun MessageStatusIcon(
             }
         }
         MessageStatus.SENT -> {
-            // Single tick
             Canvas(modifier = modifier.size(14.dp)) {
                 val path = Path().apply {
                     moveTo(size.width * 0.2f, size.height * 0.5f)
@@ -421,9 +494,7 @@ fun MessageStatusIcon(
             }
         }
         MessageStatus.READ -> {
-            // Double ticks in active accent color
             Canvas(modifier = modifier.size(17.dp)) {
-                // First tick (left)
                 val path1 = Path().apply {
                     moveTo(size.width * 0.05f, size.height * 0.5f)
                     lineTo(size.width * 0.35f, size.height * 0.75f)
@@ -431,11 +502,10 @@ fun MessageStatusIcon(
                 }
                 drawPath(
                     path = path1,
-                    color = primaryColor,
+                    color = readColor,
                     style = Stroke(width = 1.8f, cap = StrokeCap.Round)
                 )
 
-                // Second tick (right, offset)
                 val path2 = Path().apply {
                     moveTo(size.width * 0.25f, size.height * 0.5f)
                     lineTo(size.width * 0.55f, size.height * 0.75f)
@@ -443,13 +513,12 @@ fun MessageStatusIcon(
                 }
                 drawPath(
                     path = path2,
-                    color = primaryColor,
+                    color = readColor,
                     style = Stroke(width = 1.8f, cap = StrokeCap.Round)
                 )
             }
         }
         MessageStatus.FAILED -> {
-            // Exclamation error circle
             Canvas(modifier = modifier.size(13.dp)) {
                 val center = Offset(size.width / 2, size.height / 2)
                 val radius = (size.minDimension / 2) - 1f
@@ -458,7 +527,6 @@ fun MessageStatusIcon(
                     radius = radius,
                     style = Stroke(width = 1.5f)
                 )
-                // Exclamation bar
                 drawLine(
                     color = errorColor,
                     start = Offset(center.x, center.y - radius * 0.55f),
@@ -466,7 +534,6 @@ fun MessageStatusIcon(
                     strokeWidth = 1.5f,
                     cap = StrokeCap.Round
                 )
-                // Exclamation dot
                 drawCircle(
                     color = errorColor,
                     radius = 1f,

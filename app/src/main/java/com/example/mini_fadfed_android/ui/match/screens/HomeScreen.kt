@@ -1,6 +1,7 @@
 package com.example.mini_fadfed_android.ui.match.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,12 +14,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,6 +41,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.mini_fadfed_android.domain.model.MatchFilter
 import com.example.mini_fadfed_android.domain.model.UserWallet
+import com.example.mini_fadfed_android.ui.theme.FadfedBorder
+import com.example.mini_fadfed_android.ui.theme.FadfedErrorRed
+import com.example.mini_fadfed_android.ui.theme.FadfedMutedBlueGrey
+import com.example.mini_fadfed_android.ui.theme.FadfedPrimaryBackground
+import com.example.mini_fadfed_android.ui.theme.FadfedPrimaryBlue
+import com.example.mini_fadfed_android.ui.theme.FadfedSecondaryIndigo
+import com.example.mini_fadfed_android.ui.theme.FadfedSelectedBlueBg
+import com.example.mini_fadfed_android.ui.theme.FadfedTextPrimary
+import com.example.mini_fadfed_android.ui.theme.FadfedYellowAccent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,17 +65,35 @@ fun HomeScreen(
     if (errorMessage != null) {
         AlertDialog(
             onDismissRequest = onDismissError,
-            title = { Text(text = "Notice") },
-            text = { Text(text = errorMessage) },
+            title = {
+                Text(
+                    text = "Notice",
+                    fontWeight = FontWeight.Bold,
+                    color = FadfedErrorRed
+                )
+            },
+            text = {
+                Text(
+                    text = errorMessage,
+                    color = FadfedTextPrimary
+                )
+            },
             confirmButton = {
                 TextButton(onClick = onDismissError) {
-                    Text("OK")
+                    Text(
+                        text = "OK",
+                        fontWeight = FontWeight.Bold,
+                        color = FadfedSecondaryIndigo
+                    )
                 }
-            }
+            },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(20.dp)
         )
     }
 
     Scaffold(
+        containerColor = FadfedPrimaryBackground,
         topBar = {
             TopAppBar(
                 title = {
@@ -72,38 +101,50 @@ fun HomeScreen(
                         Text(
                             text = "Mini FadFed",
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.ExtraBold,
+                            color = FadfedPrimaryBlue
                         )
                         Text(
                             text = "Welcome, $userName",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = FadfedMutedBlueGrey
                         )
                     }
                 },
                 actions = {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer
-                        ),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.padding(end = 12.dp)
+                    Box(
+                        modifier = Modifier
+                            .padding(end = 16.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color.White)
+                            .border(1.dp, FadfedBorder, RoundedCornerShape(16.dp))
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                        ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .clip(CircleShape)
+                                    .background(FadfedYellowAccent),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "🪙",
+                                    fontSize = 10.sp
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "🪙 ${wallet.coins} coins",
+                                text = "${wallet.coins} coins",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                color = FadfedTextPrimary
                             )
                         }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = FadfedPrimaryBackground
                 )
             )
         },
@@ -113,39 +154,101 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp),
-            verticalArrangement = Arrangement.Center,
+            verticalArrangement = Arrangement.Top,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "Choose Who to Meet",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
+            // Profile Card Summary
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, FadfedBorder, RoundedCornerShape(20.dp))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(54.dp)
+                            .clip(CircleShape)
+                            .background(FadfedSelectedBlueBg),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "User",
+                            tint = FadfedSecondaryIndigo,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
 
-            Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.width(16.dp))
 
-            Text(
-                text = "Select a filter to find a random stranger",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = userName,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = FadfedTextPrimary
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(FadfedSelectedBlueBg)
+                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = if (userGender == "f") "Female" else "Male",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = FadfedPrimaryBlue
+                                )
+                            }
+                        }
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            // Matchmaking Section Header
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Start Matching",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = FadfedTextPrimary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Select a preference to find a conversation partner",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = FadfedMutedBlueGrey
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
             // Both (Free entry point)
             FilterOptionCard(
-                title = "Both (Everyone)",
+                title = "Everyone (Both)",
                 subtitle = "Free search • No coins required",
                 badge = "FREE",
-                badgeColor = Color(0xFF2E7D32),
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                badgeBg = FadfedPrimaryBlue,
+                badgeTextColor = Color.White,
+                accentColor = FadfedPrimaryBlue,
                 onClick = { onStartSearch(MatchFilter.BOTH) }
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Male (Paid filter)
             val maleCost = if (wallet.genderCost > 0) wallet.genderCost else 9
@@ -153,13 +256,13 @@ fun HomeScreen(
                 title = "Male Only",
                 subtitle = "Filtered search • Costs $maleCost coins",
                 badge = "$maleCost COINS",
-                badgeColor = Color(0xFFE65100),
-                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                badgeBg = FadfedYellowAccent,
+                badgeTextColor = FadfedTextPrimary,
+                accentColor = FadfedSecondaryIndigo,
                 onClick = { onStartSearch(MatchFilter.MALE) }
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Female (Paid filter)
             val femaleCost = if (wallet.genderCost > 0) wallet.genderCost else 9
@@ -167,9 +270,9 @@ fun HomeScreen(
                 title = "Female Only",
                 subtitle = "Filtered search • Costs $femaleCost coins",
                 badge = "$femaleCost COINS",
-                badgeColor = Color(0xFFE65100),
-                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                badgeBg = FadfedYellowAccent,
+                badgeTextColor = FadfedTextPrimary,
+                accentColor = FadfedSecondaryIndigo,
                 onClick = { onStartSearch(MatchFilter.FEMALE) }
             )
         }
@@ -181,23 +284,23 @@ private fun FilterOptionCard(
     title: String,
     subtitle: String,
     badge: String,
-    badgeColor: Color,
-    containerColor: Color,
-    contentColor: Color,
+    badgeBg: Color,
+    badgeTextColor: Color,
+    accentColor: Color,
     onClick: () -> Unit
 ) {
     Card(
-        onClick = onClick,
-        colors = CardDefaults.cardColors(containerColor = containerColor),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
         modifier = Modifier
             .fillMaxWidth()
-            .height(96.dp)
+            .border(1.dp, FadfedBorder, RoundedCornerShape(18.dp))
+            .clickable(onClick = onClick)
     ) {
         Row(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 20.dp),
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -206,25 +309,25 @@ private fun FilterOptionCard(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = contentColor
+                    color = FadfedTextPrimary
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = contentColor.copy(alpha = 0.8f)
+                    color = FadfedMutedBlueGrey
                 )
             }
 
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(badgeColor.copy(alpha = 0.15f))
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(badgeBg)
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
                 Text(
                     text = badge,
-                    color = badgeColor,
+                    color = badgeTextColor,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp
                 )
